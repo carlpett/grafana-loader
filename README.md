@@ -2,8 +2,6 @@
 
 Syncs Grafana v5+ dashboard definitions from Kubernetes ConfigMaps.
 
-*NOTE:* This is alpha version software. It may eat your dashboards. 
-
 ## Usage
 To deploy, ensure the following file is added to Grafana's [dashboard provisioning directory](http://docs.grafana.org/administration/provisioning/) (`/etc/grafana/provisioning/dashboards` by default):
 
