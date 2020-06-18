@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	promver "github.com/prometheus/common/version"
 	"github.com/spotahome/kooper/log"
 	"github.com/spotahome/kooper/monitoring/metrics"
 	"github.com/spotahome/kooper/operator/controller"
@@ -33,6 +35,9 @@ var (
 	namespace   = kingpin.Flag("namespace", "Namespace to watch").Default(corev1.NamespaceAll).Short('n').String()
 	selector    = kingpin.Flag("selector", "Label selector for config maps containing dashboards").Default("grafana-dashboard=true").String()
 	metricsAddr = kingpin.Flag("metrics-addr", "Address to bind metrics server to").Default(":8080").String()
+	logLevel    = kingpin.Flag("log-level", "Minimum logging level to output").Envar("LOG_LEVEL").Default("info").Enum("info", "warn", "error")
+	logFormat   = kingpin.Flag("log-format", "Format of log output").Default("logfmt").Enum("logfmt", "json")
+	version     = kingpin.Flag("version", "Print version and exit").Bool()
 )
 
 const metricsNamespace = "dashboard_loader"
@@ -53,12 +58,18 @@ var (
 func init() {
 	prometheus.MustRegister(createErrors)
 	prometheus.MustRegister(deleteErrors)
+	prometheus.MustRegister(promver.NewCollector("grafana_loader"))
 }
 
 func main() {
-	logger := &log.Std{}
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
+	if *version {
+		fmt.Println(promver.Print("grafana_loader"))
+		os.Exit(0)
+	}
+
+	logger := newLogger(*logLevel, *logFormat)
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
