@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -53,11 +54,17 @@ var (
 		Name:      "delete_errors_total",
 		Help:      "Number of errors while deleting dashboard files",
 	})
+	jsonErrors = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: metricsNamespace,
+		Name:      "json_errors_total",
+		Help:      "Number of invalid json errors while loading dashboard files",
+	})
 )
 
 func init() {
 	prometheus.MustRegister(createErrors)
 	prometheus.MustRegister(deleteErrors)
+	prometheus.MustRegister(jsonErrors)
 	prometheus.MustRegister(promver.NewCollector("grafana_loader"))
 }
 
@@ -156,6 +163,11 @@ func (eh eventHandler) addConfigMap(obj runtime.Object) error {
 	for name, content := range cm.Data {
 		if filepath.Ext(name) != ".json" {
 			eh.logger.Infof("Skipping %s in %s/%s, does not have .json extension", name, cm.Namespace, cm.Name)
+			continue
+		}
+		if !json.Valid([]byte(content)) {
+			eh.logger.Infof("Skipping %s in %s/%s, invalid json", name, cm.Namespace, cm.Name)
+			jsonErrors.Inc()
 			continue
 		}
 		// ConfigMap data items will result in files named like this:
